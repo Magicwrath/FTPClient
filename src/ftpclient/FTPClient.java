@@ -49,23 +49,19 @@ public class FTPClient extends javax.swing.JFrame {
     //U slucaju zahteva preuzimanja fajla, bice poslat naziv fajla i njegova ekstenzija
     //Zbog toga ne postoji fiksan request String, dok se REQ_SEND_FILE salje nakon sto
     //klijent primi informaciju o velicini fajla
-    private static final String REQ_DISCONNECT = "Disconnect";
-    private static final String REQ_NEW_AES_KEY = "SendingAESKey";
-    private static final String REQ_SHOW_ALL_FILES = "RequestAllFiles";
-    private static final String REQ_SHOW_PDF_FILES = "RequestPDFFiles";
-    private static final String REQ_SHOW_JPG_FILES = "RequestJPGFiles";
-    private static final String REQ_SHOW_TXT_FILES = "RequestTXTFiles";
-    private static final String REQ_SEND_FILE = "SendFile";
+    public static final String REQ_DISCONNECT = "Disconnect";
+    public static final String REQ_NEW_AES_KEY = "SendingAESKey";
+    public static final String REQ_SHOW_ALL_FILES = "RequestAllFiles";
+    public static final String REQ_SHOW_PDF_FILES = "RequestPDFFiles";
+    public static final String REQ_SHOW_JPG_FILES = "RequestJPGFiles";
+    public static final String REQ_SHOW_TXT_FILES = "RequestTXTFiles";
+    public static final String REQ_SEND_FILE = "SendFile";
     
     //response stringovi za uspesne razmene AES kljuca i IV
-    private static final String RESP_AES_EXCHANGE_READY = "AcceptingAESKey"; //odgovor da je server spreman da primi AES kljuc
-    private static final String RESP_RECIEVED_AES_KEY = "AESKeyRecieved";
-    private static final String RESP_RECIEVED_IV = "InitializationVectorRecieved";
-    private static final String RESP_WRONG_REQ = "WrongRequest";
-    
-    
-    //response string za prihvatanje zahteva slanja novog kljuca
-    private static final String ACK_NEW_AES_KEY_REQUEST = "AcceptingAESKey";
+    public static final String RESP_AES_EXCHANGE_READY = "AcceptingAESKey"; //odgovor da je server spreman da primi AES kljuc
+    public static final String RESP_RECIEVED_AES_KEY = "AESKeyRecieved";
+    public static final String RESP_RECIEVED_IV = "InitializationVectorRecieved";
+    public static final String RESP_WRONG_REQ = "WrongRequest";
     
     //socket, is i os se koriste u komunikaciji sa serverom
     private Socket socket;
@@ -311,7 +307,7 @@ public class FTPClient extends javax.swing.JFrame {
     }
     
     /**
-     * Metoda koja apstrahuje proces slanja zahteva ka serveru
+     * Metoda koja apstrahuje proces slanja zahteva ka serveru bez enkripcije
      */
     public void sendRequestString(String request) {
         try {
@@ -322,7 +318,7 @@ public class FTPClient extends javax.swing.JFrame {
     }
     
     /**
-     * Metoda koja apstrahuje proces primanja odgovora od servera
+     * Metoda koja apstrahuje proces primanja odgovora od servera bez enkripcije
      */
     @SuppressWarnings("empty-statement")
     String recieveResponseString() {
@@ -903,8 +899,25 @@ public class FTPClient extends javax.swing.JFrame {
 
     private void miIzlazActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_miIzlazActionPerformed
         // Ukoliko korisnik izabere menu item "Izlaz"
-        // salje se REQ_DISCONNECT ka serveru ako je prethodno razmenje
-        // i gasi se klijentska aplikacija
+        // salje se REQ_DISCONNECT ka serveru ako je prethodno uspostavljena
+        // konekcija
+        if(this.socket != null) {
+            //proveri da li je mozda korisnik prvo stisnuo "Diskonektuj se"
+            //i zatvorio socket
+            if(!this.socket.isClosed()) {
+                sendRequestString(REQ_DISCONNECT);
+                try {
+                    this.socket.close();
+                    this.is.close();
+                    this.os.close();
+                } catch (IOException ex) {
+                    Logger.getLogger(FTPClient.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+        
+        //zatvori prozor aplikacije
+        System.exit(0);
     }//GEN-LAST:event_miIzlazActionPerformed
 
     /**
@@ -939,18 +952,27 @@ public class FTPClient extends javax.swing.JFrame {
             public void run() {
                 //new FTPClient().setVisible(true);
                 FTPClient clientFrame = new FTPClient();
+                
+                //listener za window management sistem
+                //konkretno sa @Override se opisuje funkcija
+                //za pozivanje u slucaju izlaska iz programa
                 clientFrame.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-                        //safely disconnect from server if the client is connected
-                        System.out.println("CLOSE WINDOW EVENT!");
-                        if(clientFrame.getClientSocket().isConnected()) {
-                            System.out.println("SOCKET WAS CONNECTED!");
-                            try {
-                                clientFrame.getClientSocket().close();
-                                System.out.println("CLOSED SOCKET!");
-                            } catch (IOException ex) {
-                                Logger.getLogger(FTPClient.class.getName()).log(Level.SEVERE, null, ex);
+                        //izvrsi bezbednu diskonekciju sa serverom ako je prethodno uspostavljena
+                        //komunikacija
+                        if(clientFrame.getClientSocket() != null) {
+                            //socket nije null, znaci da je postojala komunikacija
+                            if(!clientFrame.getClientSocket().isClosed()) {
+                                //ako prethodno nije pozvan close() od socket-a
+                                //(korisnik nije stisnuo "Diskonektuj se")
+                                //posalji serveru REQ_DISCONNECT bez enkripcije i zatvori socket
+                                try {
+                                    clientFrame.sendRequestString(REQ_DISCONNECT);
+                                    clientFrame.getClientSocket().close();
+                                } catch (IOException ex) {
+                                    Logger.getLogger(FTPClient.class.getName()).log(Level.SEVERE, null, ex);
+                                }
                             }
                         }
                     }
