@@ -393,6 +393,7 @@ public class FTPClient extends javax.swing.JFrame {
         });
         spDatoteke.setViewportView(taDatoteke);
 
+        taSadrzajDatoteke.setEditable(false);
         taSadrzajDatoteke.setColumns(20);
         taSadrzajDatoteke.setRows(5);
         taSadrzajDatoteke.setEnabled(false);
